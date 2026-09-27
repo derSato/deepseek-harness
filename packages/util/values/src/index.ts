@@ -14,6 +14,15 @@ export function assertNever(value: never, context?: string): never {
   throw new Error(`unreachable variant${context ? ` in ${context}` : ''}: ${rendered}`)
 }
 
+/**
+ * Native constructor source. V8 prints `function Object() { [native code] }`;
+ * JavaScriptCore (Safari) puts `[native code]` on its own indented line.
+ */
+const NATIVE_CONSTRUCTOR_SOURCE = {
+  Array: /^function Array\(\) \{\s*\[native code\]\s*\}$/,
+  Object: /^function Object\(\) \{\s*\[native code\]\s*\}$/,
+} as const
+
 /** Whether a realm-owned intrinsic prototype is backed by its native constructor. */
 function hasIntrinsicConstructor(prototype: object, name: 'Array' | 'Object'): boolean {
   const descriptor = Object.getOwnPropertyDescriptor(prototype, 'constructor')
@@ -22,7 +31,7 @@ function hasIntrinsicConstructor(prototype: object, name: 'Array' | 'Object'): b
   try {
     return constructor.name === name
       && constructor.prototype === prototype
-      && Function.prototype.toString.call(constructor) === `function ${name}() { [native code] }`
+      && NATIVE_CONSTRUCTOR_SOURCE[name].test(Function.prototype.toString.call(constructor))
   } catch {
     return false
   }
